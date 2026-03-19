@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, RefreshCw, UserPlus } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, RefreshCw, UserPlus, Edit2, Trash2 } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddingNewClient, setIsAddingNewClient] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   
   // Data States
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -55,13 +56,7 @@ export default function Dashboard() {
       if (profsRes.error) console.error('Dashboard Error Profiles:', profsRes.error);
 
       if (clientsRes.data) setClients(clientsRes.data);
-      if (profsRes.data) {
-        console.log('Dashboard: Professionals fetched:', profsRes.data);
-        setProfessionals(profsRes.data);
-        if (profsRes.data.length === 0) {
-            console.warn('Dashboard: Nenhuma profissional cadastrada na tabela profiles!');
-        }
-      }
+      if (profsRes.data) setProfessionals(profsRes.data);
       if (servicesRes.data) setServices(servicesRes.data);
     } catch (err) {
       console.error('Erro ao carregar opções do formulário:', err);
@@ -97,7 +92,50 @@ export default function Dashboard() {
     }
   }
 
-  async function handleAddAppointment(e: React.FormEvent) {
+  function openNewModal() {
+    setEditingAppointment(null);
+    setIsAddingNewClient(false);
+    setNewClientData({ name: '', phone: '' });
+    setFormData({
+      client_id: '',
+      professional_id: '',
+      service_id: '',
+      appointment_date: format(selectedDate, 'yyyy-MM-dd'),
+      start_time: '09:00'
+    });
+    setIsModalOpen(true);
+  }
+
+  function openEditModal(apt: Appointment) {
+    setEditingAppointment(apt);
+    setIsAddingNewClient(false);
+    setFormData({
+      client_id: apt.client_id,
+      professional_id: apt.professional_id,
+      service_id: apt.service_id || '',
+      appointment_date: apt.appointment_date,
+      start_time: apt.start_time.substring(0, 5)
+    });
+    setIsModalOpen(true);
+  }
+
+  async function handleDeleteAppointment(id: string) {
+    if (!confirm('Deseja realmente apagar este agendamento?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      fetchMonthAppointments();
+    } catch (err: any) {
+      alert('Erro ao apagar agendamento: ' + err.message);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     
     if (!isAddingNewClient && !formData.client_id) {
@@ -115,7 +153,6 @@ export default function Dashboard() {
       
       let finalClientId = formData.client_id;
       
-      // 1. If adding new client, create them first
       if (isAddingNewClient) {
         const { data: newClient, error: clientError } = await supabase
           .from('clients')
@@ -136,26 +173,36 @@ export default function Dashboard() {
       const endM = totalMinutes % 60;
       const end_time = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}:00`;
 
-      const { error: insertError } = await supabase
-        .from('appointments')
-        .insert([{
-          client_id: finalClientId,
-          professional_id: formData.professional_id,
-          service_id: formData.service_id,
-          appointment_date: formData.appointment_date,
-          start_time: formData.start_time,
-          end_time,
-          status: 'scheduled'
-        }]);
+      const payload = {
+        client_id: finalClientId,
+        professional_id: formData.professional_id,
+        service_id: formData.service_id,
+        appointment_date: formData.appointment_date,
+        start_time: formData.start_time,
+        end_time,
+        status: 'scheduled'
+      };
 
-      if (insertError) throw insertError;
+      if (editingAppointment) {
+        const { error: updateError } = await supabase
+          .from('appointments')
+          .update(payload)
+          .eq('id', editingAppointment.id);
 
-      alert('Agendamento realizado com sucesso!');
+        if (updateError) throw updateError;
+        alert('Agendamento atualizado!');
+      } else {
+        const { error: insertError } = await supabase
+          .from('appointments')
+          .insert([payload]);
+
+        if (insertError) throw insertError;
+        alert('Agendamento realizado!');
+      }
+
       setIsModalOpen(false);
-      setIsAddingNewClient(false);
-      setNewClientData({ name: '', phone: '' });
       fetchMonthAppointments();
-      fetchFormData(); // Refresh client list
+      if (isAddingNewClient) fetchFormData(); 
     } catch (err: any) {
       alert('Erro ao salvar agendamento: ' + err.message);
     } finally {
@@ -182,7 +229,7 @@ export default function Dashboard() {
             <h1 className="page-title">Agenda</h1>
             <p className="page-subtitle">Gerencie os agendamentos do Espaço Della's</p>
           </div>
-          <button className="btn btn-primary" onClick={() => { setIsModalOpen(true); setIsAddingNewClient(false); }}>
+          <button className="btn btn-primary" onClick={openNewModal}>
             <Plus size={20} />
             Novo Agendamento
           </button>
@@ -251,7 +298,7 @@ export default function Dashboard() {
             <div className="appointments-header">
               <h2>
                 Agendamentos
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginLeft: '12px', fontWeight: 400 }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginLeft: '12px', fontWeight: 400 }}>
                   {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
                 </span>
               </h2>
@@ -272,11 +319,15 @@ export default function Dashboard() {
                         <div className="appointment-time">{apt.start_time.substring(0, 5)}</div>
                         <div className="appointment-details">
                           <h3 className="client-name">{apt.client?.name}</h3>
-                          <p className="service-name">{apt.service?.name || 'Serviço não especificado'}</p>
+                          <p className="service-name">{apt.service?.name}</p>
                           <div className="appointment-meta">
                             <span className={`badge ${badgeClass}`}>{profName}</span>
-                            <span className="duration">{apt.service?.duration_minutes || '?'} min</span>
+                            <span className="duration" style={{ marginLeft: '8px' }}>{apt.service?.duration_minutes || '?'} min</span>
                           </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="btn-icon" title="Editar" onClick={() => openEditModal(apt)}><Edit2 size={16} /></button>
+                          <button className="btn-icon" style={{ color: 'var(--danger)' }} title="Apagar" onClick={() => handleDeleteAppointment(apt.id)}><Trash2 size={16} /></button>
                         </div>
                       </div>
                     );
@@ -292,51 +343,39 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Modal de Novo Agendamento */}
+        {/* Modal Único (Inserir ou Editar) */}
         {isModalOpen && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}>
             <div className="card" style={{ width: '100%', maxWidth: '540px', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
               <button className="btn-icon" onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', top: '24px', right: '24px' }}>
                 <X size={24} />
               </button>
-              <h2 style={{ marginBottom: '24px', fontSize: '1.6rem', fontWeight: 800 }}>Novo Agendamento</h2>
+              <h2 style={{ marginBottom: '24px', fontSize: '1.6rem', fontWeight: 800 }}>
+                {editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}
+              </h2>
               
-              <form onSubmit={handleAddAppointment}>
+              <form onSubmit={handleSubmit}>
                 <div className="form-group">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <label style={{ margin: 0 }}>Cliente</label>
-                    <button 
-                      type="button" 
-                      onClick={() => setIsAddingNewClient(!isAddingNewClient)}
-                      style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
-                    >
-                      {isAddingNewClient ? 'Selecionar da Lista' : <><UserPlus size={16} /> Novo Cliente</>}
-                    </button>
+                    {!editingAppointment && (
+                      <button 
+                        type="button" 
+                        onClick={() => setIsAddingNewClient(!isAddingNewClient)}
+                        style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                      >
+                        {isAddingNewClient ? 'Selecionar da Lista' : <><UserPlus size={16} /> Novo Cliente</>}
+                      </button>
+                    )}
                   </div>
                   
                   {isAddingNewClient ? (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '16px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px dashed var(--primary)' }}>
-                      <input 
-                        type="text" 
-                        placeholder="Nome do Cliente" 
-                        value={newClientData.name} 
-                        onChange={(e) => setNewClientData({...newClientData, name: e.target.value})} 
-                        required 
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="Telefone" 
-                        value={newClientData.phone} 
-                        onChange={(e) => setNewClientData({...newClientData, phone: e.target.value})} 
-                        required 
-                      />
+                      <input type="text" placeholder="Nome" value={newClientData.name} onChange={e => setNewClientData({...newClientData, name: e.target.value})} required />
+                      <input type="text" placeholder="Telefone" value={newClientData.phone} onChange={e => setNewClientData({...newClientData, phone: e.target.value})} required />
                     </div>
                   ) : (
-                    <select 
-                      value={formData.client_id} 
-                      onChange={(e) => setFormData({...formData, client_id: e.target.value})} 
-                      required
-                    >
+                    <select value={formData.client_id} onChange={e => setFormData({...formData, client_id: e.target.value})} required>
                       <option value="">Escolha um cliente...</option>
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
@@ -345,11 +384,7 @@ export default function Dashboard() {
 
                 <div className="form-group">
                   <label>Profissional Responsável</label>
-                  <select 
-                    value={formData.professional_id} 
-                    onChange={(e) => setFormData({...formData, professional_id: e.target.value})} 
-                    required
-                  >
+                  <select value={formData.professional_id} onChange={e => setFormData({...formData, professional_id: e.target.value})} required>
                     <option value="">Selecione...</option>
                     {professionals.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
@@ -357,11 +392,7 @@ export default function Dashboard() {
 
                 <div className="form-group">
                   <label>Serviço</label>
-                  <select 
-                    value={formData.service_id} 
-                    onChange={(e) => setFormData({...formData, service_id: e.target.value})} 
-                    required
-                  >
+                  <select value={formData.service_id} onChange={e => setFormData({...formData, service_id: e.target.value})} required>
                     <option value="">Selecione o procedimento...</option>
                     {services
                       .filter(s => !formData.professional_id || s.professional_id === formData.professional_id)
@@ -372,26 +403,16 @@ export default function Dashboard() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                   <div className="form-group">
                     <label>Data</label>
-                    <input 
-                      type="date" 
-                      value={formData.appointment_date} 
-                      onChange={(e) => setFormData({...formData, appointment_date: e.target.value})} 
-                      required 
-                    />
+                    <input type="date" value={formData.appointment_date} onChange={e => setFormData({...formData, appointment_date: e.target.value})} required />
                   </div>
                   <div className="form-group">
                     <label>Horário</label>
-                    <input 
-                      type="time" 
-                      value={formData.start_time} 
-                      onChange={(e) => setFormData({...formData, start_time: e.target.value})} 
-                      required 
-                    />
+                    <input type="time" value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} required />
                   </div>
                 </div>
 
                 <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '16px', fontSize: '1.1rem' }} disabled={submitting}>
-                  {submitting ? 'Salvando...' : 'Confirmar Agendamento'}
+                  {submitting ? 'Salvando...' : (editingAppointment ? 'Salvar Alterações' : 'Confirmar Agendamento')}
                 </button>
               </form>
             </div>
