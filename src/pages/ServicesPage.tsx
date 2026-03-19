@@ -24,8 +24,21 @@ export default function ServicesPage() {
   }, []);
 
   async function fetchProfessionals() {
-    const { data } = await supabase.from('profiles').select('*');
-    if (data) setProfessionalsList(data);
+    console.log('Buscando profissionais...');
+    const { data, error } = await supabase.from('profiles').select('*').order('name');
+    if (error) {
+      console.error('Erro ao buscar perfis:', error);
+      alert('Erro ao buscar profissionais: ' + error.message + '. Verifique sua conexão ou políticas RLS.');
+    }
+    if (data) {
+      console.log('Perfis encontrados:', data);
+      setProfessionalsList(data);
+      if (data.length === 0) {
+        alert('Nenhum profissional encontrado. Verifique seu banco de dados ou políticas RLS para a tabela "profiles".');
+      }
+    } else {
+        alert('Nenhum profissional encontrado. Verifique seu banco de dados ou políticas RLS para a tabela "profiles".');
+    }
   }
 
   async function fetchServices() {

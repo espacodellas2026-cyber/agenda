@@ -47,12 +47,21 @@ export default function Dashboard() {
     try {
       const [clientsRes, profsRes, servicesRes] = await Promise.all([
         supabase.from('clients').select('*').order('name'),
-        supabase.from('profiles').select('*'),
+        supabase.from('profiles').select('*').order('name'),
         supabase.from('services').select('*')
       ]);
 
+      if (clientsRes.error) console.error('Dashboard Error Clients:', clientsRes.error);
+      if (profsRes.error) console.error('Dashboard Error Profiles:', profsRes.error);
+
       if (clientsRes.data) setClients(clientsRes.data);
-      if (profsRes.data) setProfessionals(profsRes.data);
+      if (profsRes.data) {
+        console.log('Dashboard: Professionals fetched:', profsRes.data);
+        setProfessionals(profsRes.data);
+        if (profsRes.data.length === 0) {
+            console.warn('Dashboard: Nenhuma profissional cadastrada na tabela profiles!');
+        }
+      }
       if (servicesRes.data) setServices(servicesRes.data);
     } catch (err) {
       console.error('Erro ao carregar opções do formulário:', err);
