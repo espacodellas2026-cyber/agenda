@@ -52,17 +52,11 @@ export default function Dashboard() {
         supabase.from('services').select('*')
       ]);
 
-      if (clientsRes.error) console.error('Dashboard Error Clients:', clientsRes.error);
-      if (profsRes.error) console.error('Dashboard Error Profiles:', profsRes.error);
-
       if (clientsRes.data) setClients(clientsRes.data);
-      if (profsRes.data) {
-        console.log('Dashboard: Professionals loaded:', profsRes.data);
-        setProfessionals(profsRes.data);
-      }
+      if (profsRes.data) setProfessionals(profsRes.data);
       if (servicesRes.data) setServices(servicesRes.data);
     } catch (err) {
-      console.error('Erro ao carregar opções:', err);
+      console.error('Erro ao carregar opções do formulário:', err);
     }
   }
 
@@ -98,12 +92,12 @@ export default function Dashboard() {
   function openNewModal() {
     setEditingAppointment(null);
     setIsAddingNewClient(false);
-    const initialDate = format(selectedDate, 'yyyy-MM-dd');
+    setNewClientData({ name: '', phone: '' });
     setFormData({
       client_id: '',
       professional_id: '',
       service_id: '',
-      appointment_date: initialDate,
+      appointment_date: format(selectedDate, 'yyyy-MM-dd'),
       start_time: '09:00'
     });
     setIsModalOpen(true);
@@ -126,44 +120,47 @@ export default function Dashboard() {
     if (!confirm('Deseja realmente apagar este agendamento?')) return;
     
     try {
-      const { error } = await supabase.from('appointments').delete().eq('id', id);
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', id);
+        
       if (error) throw error;
       fetchMonthAppointments();
     } catch (err: any) {
-      alert('Erro ao apagar: ' + err.message);
+      alert('Erro ao apagar agendamento: ' + err.message);
     }
   }
 
   async function checkConflicts(profId: string, date: string, startTime: string, endTime: string, currentId?: string) {
-    console.log(`DEBUG: Iniciando verificação de conflitos para: Prof ${profId}, Data ${date}, De ${startTime} até ${endTime}`);
+    // ALERT FORCED FOR DEBUGGING
+    console.log(`DEBUG: Iniciando busca de conflitos para Prof ${profId} no dia ${date}`);
     
     // Check if any existing appointment for the same professional overlaps
     const { data: conflicts, error } = await supabase
       .from('appointments')
-      .select('id, start_time, end_time, client:client_id(name)')
+      .select('id, start_time, end_time')
       .eq('professional_id', profId)
       .eq('appointment_date', date);
 
     if (error) {
-      console.error('DEBUG: Erro ao buscar conflitos no banco:', error);
-      return false;
+       console.error("DEBUG: Erro na busca:", error);
+       return false;
     }
 
-    console.log(`DEBUG: Encontrados ${conflicts?.length || 0} agendamentos no banco para este profissional nesta data.`);
+    console.log(`DEBUG: Encontrados ${conflicts?.length || 0} agendamentos no banco.`);
 
     if (!conflicts || conflicts.length === 0) return false;
 
     // Filter out the current appointment being edited
     const otherAppointments = currentId ? conflicts.filter(apt => apt.id !== currentId) : conflicts;
     
-    console.log(`DEBUG: Verificando sobreposição contra ${otherAppointments.length} outros agendamentos.`);
-
     const conflictingItem = otherAppointments.find(apt => {
       const aptStart = apt.start_time;
       const aptEnd = apt.end_time;
       const hasOverlap = (startTime < aptEnd && endTime > aptStart);
       if (hasOverlap) {
-        console.log(`DEBUG: Conflito detectado com agendamento das ${aptStart} às ${aptEnd} (ID: ${apt.id})`);
+         console.log(`DEBUG: Conflito encontrado com ${aptStart} - ${aptEnd}`);
       }
       return hasOverlap;
     });
@@ -174,8 +171,14 @@ export default function Dashboard() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     
+    // ALERT FORCED TO CONFIRM SUBMIT IS CALLED
+    console.log("DEBUG:handleSubmit() foi ativado!");
+    
     if (!isAddingNewClient && !formData.client_id) {
-       alert('Selecione um cliente.'); return;
+       alert('Selecione um cliente ou cadastre um novo.'); return;
+    }
+    if (isAddingNewClient && (!newClientData.name || !newClientData.phone)) {
+       alert('Preencha os dados do novo cliente.'); return;
     }
     if (!formData.professional_id || !formData.service_id) {
        alert('Selecione a profissional e o serviço.'); return;
@@ -204,7 +207,7 @@ export default function Dashboard() {
       );
 
       if (hasConflict) {
-        const confirmSave = confirm('⚠️ ALERTA DE CONFLITO: Esta profissional já possui um agendamento neste mesmo horário! Deseja prosseguir com a marcação duplicada?');
+        const confirmSave = confirm('⚠️ ALERTA DE CONFLITO: A profissional selecionada já possui um agendamento neste mesmo horário! Deseja realizar este agendamento duplicado mesmo assim?');
         if (!confirmSave) {
           setSubmitting(false);
           return;
@@ -241,16 +244,15 @@ export default function Dashboard() {
           .eq('id', editingAppointment.id);
 
         if (updateError) throw updateError;
-        alert('Agendamento atualizado com sucesso!');
       } else {
         const { error: insertError } = await supabase
           .from('appointments')
           .insert([payload]);
 
         if (insertError) throw insertError;
-        alert('Agendamento realizado com sucesso!');
       }
 
+      alert('Operação realizada com sucesso!');
       setIsModalOpen(false);
       fetchMonthAppointments();
       if (isAddingNewClient) fetchFormData(); 
@@ -280,7 +282,7 @@ export default function Dashboard() {
             <h1 className="page-title">Agenda</h1>
             <p className="page-subtitle">Gerencie os agendamentos do Espaço Della's</p>
           </div>
-          <button className="btn btn-primary" onClick={openNewModal}>
+          <button className="btn btn-primary" id="btn-novo-agendamento" onClick={openNewModal}>
             <Plus size={20} />
             Novo Agendamento
           </button>
@@ -349,7 +351,7 @@ export default function Dashboard() {
             <div className="appointments-header">
               <h2>
                 Agendamentos
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginLeft: '12px', fontWeight: 400 }}>
+                <span id="label-selected-date" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginLeft: '12px', fontWeight: 400 }}>
                   {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
                 </span>
               </h2>
@@ -398,14 +400,14 @@ export default function Dashboard() {
         {isModalOpen && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}>
             <div className="card" style={{ width: '100%', maxWidth: '540px', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
-              <button className="btn-icon" onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', top: '24px', right: '24px' }}>
+              <button className="btn-icon" id="btn-fechar-modal" onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', top: '24px', right: '24px' }}>
                 <X size={24} />
               </button>
               <h2 style={{ marginBottom: '24px', fontSize: '1.6rem', fontWeight: 800 }}>
                 {editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}
               </h2>
               
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit} id="form-agendamento">
                 <div className="form-group">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <label style={{ margin: 0 }}>Cliente</label>
@@ -435,7 +437,7 @@ export default function Dashboard() {
 
                 <div className="form-group">
                   <label>Profissional Responsável</label>
-                  <select value={formData.professional_id} onChange={e => setFormData({...formData, professional_id: e.target.value})} required>
+                  <select value={formData.professional_id} id="select-profissional" onChange={e => setFormData({...formData, professional_id: e.target.value})} required>
                     <option value="">Selecione...</option>
                     {professionals.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
@@ -462,7 +464,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '16px', fontSize: '1.1rem' }} disabled={submitting}>
+                <button type="submit" id="btn-confirmar-agendamento" className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '16px', fontSize: '1.1rem' }} disabled={submitting}>
                   {submitting ? 'Salvando...' : (editingAppointment ? 'Salvar Alterações' : 'Confirmar Agendamento')}
                 </button>
               </form>
