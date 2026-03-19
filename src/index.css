@@ -107,8 +107,48 @@ body {
 }
 
 .sidebar-footer {
-  padding: 24px;
+  padding: 20px;
   border-top: 1px solid var(--border-color);
+  background: rgba(0,0,0,0.2);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  background: var(--primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: white;
+  box-shadow: 0 4px 10px rgba(157, 78, 221, 0.3);
+  flex-shrink: 0;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.user-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.user-role {
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 /* MAIN AREA */
@@ -361,22 +401,30 @@ td {
 .dot { width: 5px; height: 5px; border-radius: 50%; }
 .dot.isis { background-color: var(--pro-isis); box-shadow: 0 0 6px var(--pro-isis); }
 .dot.jaiane { background-color: var(--pro-jaiane); box-shadow: 0 0 6px var(--pro-jaiane); }
+.appointments-header h2 {
+  font-size: 1.4rem; /* Smaller header */
+}
+
+.appointments-header span {
+  font-size: 0.85rem !important; /* Smaller date */
+  letter-spacing: 0.5px;
+}
 
 /* Agendamentos */
 .appointments-list {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .appointment-card {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 24px;
-  gap: 24px;
+  border-radius: 18px;
+  padding: 20px;
+  gap: 20px;
   transition: var(--transition);
 }
 
@@ -396,8 +444,20 @@ td {
 }
 
 .appointment-details { flex: 1; }
-.client-name { font-size: 1.2rem; font-weight: 700; margin-bottom: 2px; }
-.service-name { color: var(--text-muted); font-size: 1rem; }
+.client-name { 
+  font-size: 1rem; 
+  font-weight: 500; 
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.service-name { 
+  color: white; 
+  font-size: 1.25rem; 
+  font-weight: 800; /* Much more highlight */
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
 
 .badge { padding: 6px 14px; border-radius: 10px; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; }
 .badge-isis { background: rgba(42, 157, 143, 0.15); color: var(--pro-isis); }
