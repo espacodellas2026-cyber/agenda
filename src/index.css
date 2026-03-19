@@ -430,7 +430,13 @@ input:focus, select:focus, textarea:focus {
   display: grid;
   grid-template-columns: 380px 1fr; /* Coluna 1 do Calendario "fixa", o resto expande com a lista de Agendamentos. */
   gap: 24px;
-  align-items: start;
+}
+
+/* Ocupa a tela elegantemente evitando buracos vazios pretos no rodapé nas telas de PC maiores que 1100px */
+@media (min-width: 1101px) {
+  .dashboard-grid > .card {
+    min-height: calc(100vh - 150px);
+  }
 }
 
 .calendar-header {
