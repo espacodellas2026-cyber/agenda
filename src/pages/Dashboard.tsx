@@ -31,12 +31,20 @@ export default function Dashboard() {
     setSelectedDate(day);
   };
 
-  // Mock appointments
+  // Mock appointments com datas concretas do ciclo atual
   const appointments = [
-    { id: '1', client: 'Maria Silva', service: 'Design de Sobrancelha', time: '09:00', duration: '60 min', professional: 'Isis' },
-    { id: '2', client: 'Ana Paula', service: 'Manicure', time: '10:30', duration: '90 min', professional: 'Jaiane' },
-    { id: '3', client: 'Juliana Costa', service: 'Alongamento Cílios', time: '14:00', duration: '120 min', professional: 'Isis' },
+    { id: '1', client: 'Maria Silva', service: 'Design de Sobrancelha', time: '09:00', duration: '60 min', professional: 'Isis', date: new Date() },
+    { id: '2', client: 'Ana Paula', service: 'Manicure', time: '10:30', duration: '90 min', professional: 'Jaiane', date: new Date() },
+    { id: '3', client: 'Juliana Costa', service: 'Alongamento Cílios', time: '14:00', duration: '120 min', professional: 'Isis', date: addMonths(new Date(), 0) },
+    { id: '4', client: 'Carla', service: 'Pedicure', time: '08:00', duration: '45 min', professional: 'Jaiane', date: addMonths(new Date(), 0) }
   ];
+
+  // Adicionando um de teste amanhã pra ver as bolinhas coloridas
+  appointments[2].date.setDate(currentDate.getDate() + 1);
+  appointments[3].date.setDate(currentDate.getDate() + 1);
+
+  // Filtrando os agendamentos pelo selectedDate atual
+  const selectedDateAppointments = appointments.filter(apt => isSameDay(apt.date, selectedDate));
 
   return (
     <div className="dashboard">
@@ -82,6 +90,11 @@ export default function Dashboard() {
               const isSelected = isSameDay(day, selectedDate);
               const isCurrentMonth = isSameMonth(day, monthStart);
               
+              // Verify professionals with appointments on this specific day
+              const dayAppointments = appointments.filter(apt => isSameDay(apt.date, day));
+              const hasIsis = dayAppointments.some(apt => apt.professional === 'Isis');
+              const hasJaiane = dayAppointments.some(apt => apt.professional === 'Jaiane');
+              
               return (
                 <div
                   key={day.toString()}
@@ -89,8 +102,14 @@ export default function Dashboard() {
                   onClick={() => onDateClick(day)}
                 >
                   <span className="day-number">{formattedDate}</span>
-                  {/* Mock indicators */}
-                  {isCurrentMonth && (day.getDate() % 3 === 0) && <span className="day-indicator"></span>}
+                  
+                  {/* Color dots depending on who is working that day */}
+                  {(hasIsis || hasJaiane) && (
+                    <div className="dots-container">
+                       {hasIsis && <span className="dot isis"></span>}
+                       {hasJaiane && <span className="dot jaiane"></span>}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -108,20 +127,26 @@ export default function Dashboard() {
           </div>
 
           <div className="appointments-list">
-            {appointments.length > 0 ? (
-              appointments.map(apt => (
-                <div key={apt.id} className="appointment-card">
-                  <div className="appointment-time">{apt.time}</div>
-                  <div className="appointment-details">
-                    <h3 className="client-name">{apt.client}</h3>
-                    <p className="service-name">{apt.service}</p>
-                    <div className="appointment-meta">
-                      <span className="badge badge-professional">{apt.professional}</span>
-                      <span className="duration">{apt.duration}</span>
+            {selectedDateAppointments.length > 0 ? (
+              selectedDateAppointments.sort((a,b) => a.time.localeCompare(b.time)).map(apt => {
+                const isIsis = apt.professional === 'Isis';
+                const professionalClass = isIsis ? 'pro-isis' : 'pro-jaiane';
+                const badgeClass = isIsis ? 'badge-isis' : 'badge-jaiane';
+                
+                return (
+                  <div key={apt.id} className={`appointment-card ${professionalClass}`}>
+                    <div className="appointment-time">{apt.time}</div>
+                    <div className="appointment-details">
+                      <h3 className="client-name">{apt.client}</h3>
+                      <p className="service-name">{apt.service}</p>
+                      <div className="appointment-meta">
+                        <span className={`badge ${badgeClass}`}>{apt.professional}</span>
+                        <span className="duration">{apt.duration}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="empty-state">
                 <CalendarIcon size={48} className="empty-icon" />

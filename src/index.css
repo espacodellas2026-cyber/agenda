@@ -14,6 +14,10 @@
   
   --danger: #e63946;
   --success: #2a9d8f;
+
+  /* Cores das Profissionais */
+  --pro-isis: #2a9d8f; /* Green */
+  --pro-jaiane: #e9c46a; /* Yellow/Gold */
   
   --border-color: #3e284f;
   --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.4);
@@ -243,6 +247,27 @@ input:focus, select:focus, textarea:focus {
   display: flex;
   width: 100%;
   min-height: 100vh;
+  flex-direction: column;
+}
+
+.mobile-header {
+  display: none;
+  padding: 16px 20px;
+  background-color: var(--bg-panel);
+  border-bottom: 1px solid var(--border-color);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.menu-btn {
+  background: none;
+  border: none;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.mobile-only {
+  display: none;
 }
 
 .sidebar {
@@ -251,6 +276,10 @@ input:focus, select:focus, textarea:focus {
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+}
+
+.sidebar-overlay {
+  display: none;
 }
 
 .sidebar-header {
@@ -372,7 +401,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ==========================================================
-   Dashboard
+   Dashboard & Outros
    ========================================================== */
 .page-header {
   display: flex;
@@ -469,27 +498,30 @@ input:focus, select:focus, textarea:focus {
 }
 
 .calendar-day.selected {
-  background-color: var(--primary);
-  color: white;
-  box-shadow: 0 4px 10px rgba(212, 34, 115, 0.4);
-}
-
-.calendar-day.today:not(.selected) {
+  background-color: var(--bg-card);
   border: 2px solid var(--secondary);
+  color: white;
 }
 
-.day-indicator {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--secondary);
+.calendar-day.today {
+  color: var(--secondary);
+  font-weight: 800;
+}
+
+.dots-container {
+  display: flex;
+  gap: 3px;
   position: absolute;
   bottom: 8px;
 }
 
-.selected .day-indicator {
-  background-color: white;
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
 }
+.dot.isis { background-color: var(--pro-isis); box-shadow: 0 0 4px var(--pro-isis); }
+.dot.jaiane { background-color: var(--pro-jaiane); box-shadow: 0 0 4px var(--pro-jaiane); }
 
 .appointments-header {
   margin-bottom: 24px;
@@ -512,13 +544,23 @@ input:focus, select:focus, textarea:focus {
 
 .appointment-card:hover {
   transform: translateX(4px);
-  border-color: var(--secondary);
+}
+
+/* Modificadores Visuais - Cores Profissionais */
+.appointment-card.pro-isis {
+  border-left: 4px solid var(--pro-isis);
+  background: linear-gradient(90deg, rgba(42, 157, 143, 0.08) 0%, var(--bg-card) 40%);
+}
+
+.appointment-card.pro-jaiane {
+  border-left: 4px solid var(--pro-jaiane);
+  background: linear-gradient(90deg, rgba(233, 196, 106, 0.08) 0%, var(--bg-card) 40%);
 }
 
 .appointment-time {
   font-size: 1.2rem;
   font-weight: 700;
-  color: var(--primary);
+  color: var(--text-main);
   width: 80px;
   flex-shrink: 0;
 }
@@ -551,9 +593,14 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
 }
 
-.badge-professional {
-  background-color: rgba(123, 44, 191, 0.2);
-  color: #bfa1e6;
+.badge-isis {
+  background-color: rgba(42, 157, 143, 0.15);
+  color: var(--pro-isis);
+}
+
+.badge-jaiane {
+  background-color: rgba(233, 196, 106, 0.15);
+  color: var(--pro-jaiane);
 }
 
 .duration {
@@ -578,4 +625,72 @@ input:focus, select:focus, textarea:focus {
 .empty-state h3 {
   color: var(--text-main);
   margin-bottom: 8px;
+}
+
+/* ==========================================================
+   RESPONSIVIDADE SMARTPHONE (Max 768px)
+   ========================================================== */
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+  
+  .mobile-header {
+    display: flex;
+  }
+  
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    height: 100vh;
+    z-index: 1000;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 15px rgba(0,0,0,0.5);
+  }
+  
+  .sidebar.open {
+    left: 0;
+  }
+
+  .mobile-only {
+    display: block;
+  }
+  
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(0,0,0,0.6);
+    backdrop-filter: blur(2px);
+    z-index: 999;
+  }
+  
+  .main-area {
+    padding: 20px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr !important; /* Stack vertically */
+  }
+
+  .calendar-day {
+    padding: 8px 0;
+  }
+  
+  /* Esconde tabela no mobile em 'Clientes' transformando no essencial */
+  table th, table td {
+    padding: 12px 4px !important;
+    font-size: 0.9rem;
+  }
 }

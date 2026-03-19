@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Calendar, Users, Briefcase, Settings, LogOut, Sparkles } from 'lucide-react';
+import { Calendar, Users, Briefcase, Settings, LogOut, Sparkles, Menu, X } from 'lucide-react';
 
 export default function AppLayout() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
 
   // Mock profile data later to be replaced by AuthContext
@@ -9,10 +11,30 @@ export default function AppLayout() {
 
   return (
     <div className="app-layout">
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <Sparkles className="sidebar-logo-icon" />
-          <h2 className="sidebar-title">Espaço Della's</h2>
+      {/* Navbar mobile */}
+      <div className="mobile-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Sparkles className="sidebar-logo-icon" size={20} />
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Agenda</h2>
+        </div>
+        <button className="menu-btn" onClick={() => setIsSidebarOpen(true)}>
+          <Menu size={28} />
+        </button>
+      </div>
+
+      {isSidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>
+      )}
+
+      <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-header" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Sparkles className="sidebar-logo-icon" />
+            <h2 className="sidebar-title">Espaço Della's</h2>
+          </div>
+          <button className="menu-btn mobile-only" onClick={() => setIsSidebarOpen(false)}>
+            <X size={24} />
+          </button>
         </div>
 
         <nav className="sidebar-nav">
