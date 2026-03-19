@@ -628,8 +628,27 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ==========================================================
-   RESPONSIVIDADE SMARTPHONE (Max 768px)
+   RESPONSIVIDADE GERAL (Tablets e Smartphones)
    ========================================================== */
+
+/* 1. TABLETS e MONITORES MENORES (Max 1100px) */
+@media (max-width: 1100px) {
+  .main-area {
+    padding: 24px;
+  }
+  
+  .dashboard-grid {
+    /* Força o painel da Dashboard inteira para 1 coluna vertical suave antes do layout colapsar pra celular */
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Ajustes na página de Configurações para Tablets */
+  .settings-page .dashboard-grid {
+    grid-template-columns: 200px 1fr !important; /* Menu de config levemente mais estreito */
+  }
+}
+
+/* 2. SMARTPHONES e TELAS PEQUENAS (Max 768px) */
 @media (max-width: 768px) {
   .app-layout {
     flex-direction: column;
@@ -639,13 +658,14 @@ input:focus, select:focus, textarea:focus {
     display: flex;
   }
   
+  /* Esconde o sidebar esquerdo do Computador/Tablet para transformá-lo em uma gaveta lateral retrátil (Hambúrguer) */
   .sidebar {
     position: fixed;
     top: 0;
     left: -100%;
     height: 100vh;
     z-index: 1000;
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 4px 0 15px rgba(0,0,0,0.5);
   }
   
@@ -680,8 +700,8 @@ input:focus, select:focus, textarea:focus {
     width: 100%;
   }
 
-  .dashboard-grid {
-    grid-template-columns: 1fr !important; /* Stack vertically */
+  .settings-page .dashboard-grid {
+    grid-template-columns: 1fr !important; /* Menu de Config e Corpo quebram para colunas empilhadas no Celular */
   }
 
   .calendar-day {
