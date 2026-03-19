@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, RefreshCw, UserPlus, Edit2, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, RefreshCw, UserPlus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
@@ -135,6 +135,25 @@ export default function Dashboard() {
     }
   }
 
+  async function checkConflicts(profId: string, date: string, startTime: string, endTime: string, currentId?: string) {
+    // Check if any existing appointment for the same professional overlaps
+    const { data: conflicts, error } = await supabase
+      .from('appointments')
+      .select('start_time, end_time, client:client_id(name)')
+      .eq('professional_id', profId)
+      .eq('appointment_date', date)
+      .neq('id', currentId || '00000000-0000-0000-0000-000000000000');
+
+    if (error) return false;
+
+    // Overlap logic: (StartA < EndB) AND (EndA > StartB)
+    return conflicts.some(apt => {
+      const aptStart = apt.start_time;
+      const aptEnd = apt.end_time;
+      return (startTime < aptEnd && endTime > aptStart);
+    });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     
@@ -151,6 +170,33 @@ export default function Dashboard() {
     try {
       setSubmitting(true);
       
+      const service = services.find(s => s.id === formData.service_id);
+      const duration = service?.duration_minutes || 60;
+      
+      const [h, m] = formData.start_time.split(':').map(Number);
+      const totalMinutes = h * 60 + m + duration;
+      const endH = Math.floor(totalMinutes / 60);
+      const endM = totalMinutes % 60;
+      const end_time = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}:00`;
+      const start_time = `${formData.start_time}:00`;
+
+      // CONFLICT CHECK
+      const hasConflict = await checkConflicts(
+        formData.professional_id, 
+        formData.appointment_date, 
+        start_time, 
+        end_time,
+        editingAppointment?.id
+      );
+
+      if (hasConflict) {
+        const confirmSave = confirm('⚠️ ATENÇÃO: A profissional selecionada já possui um agendamento neste mesmo horário! Deseja realizar este agendamento duplicado mesmo assim?');
+        if (!confirmSave) {
+          setSubmitting(false);
+          return;
+        }
+      }
+
       let finalClientId = formData.client_id;
       
       if (isAddingNewClient) {
@@ -164,22 +210,13 @@ export default function Dashboard() {
         finalClientId = newClient.id;
       }
       
-      const service = services.find(s => s.id === formData.service_id);
-      const duration = service?.duration_minutes || 60;
-      
-      const [h, m] = formData.start_time.split(':').map(Number);
-      const totalMinutes = h * 60 + m + duration;
-      const endH = Math.floor(totalMinutes / 60);
-      const endM = totalMinutes % 60;
-      const end_time = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}:00`;
-
       const payload = {
         client_id: finalClientId,
         professional_id: formData.professional_id,
         service_id: formData.service_id,
         appointment_date: formData.appointment_date,
-        start_time: formData.start_time,
-        end_time,
+        start_time: start_time,
+        end_time: end_time,
         status: 'scheduled'
       };
 
@@ -190,14 +227,14 @@ export default function Dashboard() {
           .eq('id', editingAppointment.id);
 
         if (updateError) throw updateError;
-        alert('Agendamento atualizado!');
+        alert('Agendamento atualizado com sucesso!');
       } else {
         const { error: insertError } = await supabase
           .from('appointments')
           .insert([payload]);
 
         if (insertError) throw insertError;
-        alert('Agendamento realizado!');
+        alert('Agendamento realizado com sucesso!');
       }
 
       setIsModalOpen(false);
