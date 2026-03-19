@@ -428,8 +428,9 @@ input:focus, select:focus, textarea:focus {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 380px 1fr; /* Coluna 1 do Calendario "fixa", o resto expande com a lista de Agendamentos. */
   gap: 24px;
+  align-items: start;
 }
 
 .calendar-header {
@@ -634,17 +635,18 @@ input:focus, select:focus, textarea:focus {
 /* 1. TABLETS e MONITORES MENORES (Max 1100px) */
 @media (max-width: 1100px) {
   .main-area {
-    padding: 24px;
+    padding: 24px;   
   }
   
   .dashboard-grid {
-    /* Força o painel da Dashboard inteira para 1 coluna vertical suave antes do layout colapsar pra celular */
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr; /* Volta para coluna unica em tablets/Pequenos */
   }
 
-  /* Ajustes na página de Configurações para Tablets */
-  .settings-page .dashboard-grid {
-    grid-template-columns: 200px 1fr !important; /* Menu de config levemente mais estreito */
+  /* Limita o calendário para que não fique deformado como um tubo gigante na horizontal */
+  .dashboard-grid > .card:first-child {
+    max-width: 450px;
+    width: 100%;
+    margin: 0 auto;
   }
 }
 
@@ -700,8 +702,8 @@ input:focus, select:focus, textarea:focus {
     width: 100%;
   }
 
-  .settings-page .dashboard-grid {
-    grid-template-columns: 1fr !important; /* Menu de Config e Corpo quebram para colunas empilhadas no Celular */
+  .dashboard-grid > .card:first-child {
+    max-width: 100%; /* No Celular ele volta a preencher todo o mini layout*/
   }
 
   .calendar-day {

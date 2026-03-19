@@ -17,7 +17,7 @@ export default function SettingsPage() {
         </button>
       </header>
 
-      <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr 3fr' }}>
+      <div className="dashboard-grid">
         <div className="card" style={{ alignSelf: 'start', padding: '16px 0' }}>
           <nav style={{ display: 'flex', flexDirection: 'column' }}>
             <button 
