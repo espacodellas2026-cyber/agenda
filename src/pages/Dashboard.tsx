@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export default function Dashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
@@ -44,7 +45,7 @@ export default function Dashboard() {
           <h1 className="page-title">Agenda</h1>
           <p className="page-subtitle">Gerencie os agendamentos do salão</p>
         </div>
-        <button className="btn btn-primary">
+        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
           <Plus size={20} />
           Novo Agendamento
         </button>
@@ -131,6 +132,64 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Novo Agendamento */}
+      {isModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '500px', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+            <button 
+              className="btn-icon" 
+              onClick={() => setIsModalOpen(false)} 
+              style={{ position: 'absolute', top: '16px', right: '16px' }}
+            >
+              <X size={24} />
+            </button>
+            <h2 style={{ marginBottom: '24px', fontSize: '1.5rem' }}>Novo Agendamento</h2>
+            
+            <form onSubmit={(e) => { 
+                e.preventDefault(); 
+                alert('Os formulários estão prontos! Quando integrarmos o Supabase, os agendamentos serão salvos de verdade.'); 
+                setIsModalOpen(false); 
+            }}>
+              <div className="form-group">
+                <label>Cliente</label>
+                <input type="text" placeholder="Nome do cliente (ou busque um existente)" required />
+              </div>
+              <div className="form-group">
+                <label>Profissional Responsável</label>
+                <select required>
+                  <option value="">Selecione...</option>
+                  <option value="Isis">Isis</option>
+                  <option value="Jaiane">Jaiane</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Serviço Desejado</label>
+                <select required>
+                  <option value="">Selecione...</option>
+                  <option value="Design">Design de Sobrancelha</option>
+                  <option value="Cílios">Alongamento de Cílios</option>
+                  <option value="Manicure">Manicure / Pedicure</option>
+                  <option value="Spa">Spa dos Pés</option>
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label>Data</label>
+                  <input type="date" required />
+                </div>
+                <div className="form-group">
+                  <label>Horário</label>
+                  <input type="time" required />
+                </div>
+              </div>
+              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px' }}>
+                Confirmar Agendamento
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
