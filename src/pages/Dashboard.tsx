@@ -56,10 +56,13 @@ export default function Dashboard() {
       if (profsRes.error) console.error('Dashboard Error Profiles:', profsRes.error);
 
       if (clientsRes.data) setClients(clientsRes.data);
-      if (profsRes.data) setProfessionals(profsRes.data);
+      if (profsRes.data) {
+        console.log('Dashboard: Professionals loaded:', profsRes.data);
+        setProfessionals(profsRes.data);
+      }
       if (servicesRes.data) setServices(servicesRes.data);
     } catch (err) {
-      console.error('Erro ao carregar opções do formulário:', err);
+      console.error('Erro ao carregar opções:', err);
     }
   }
 
@@ -95,12 +98,12 @@ export default function Dashboard() {
   function openNewModal() {
     setEditingAppointment(null);
     setIsAddingNewClient(false);
-    setNewClientData({ name: '', phone: '' });
+    const initialDate = format(selectedDate, 'yyyy-MM-dd');
     setFormData({
       client_id: '',
       professional_id: '',
       service_id: '',
-      appointment_date: format(selectedDate, 'yyyy-MM-dd'),
+      appointment_date: initialDate,
       start_time: '09:00'
     });
     setIsModalOpen(true);
@@ -123,45 +126,56 @@ export default function Dashboard() {
     if (!confirm('Deseja realmente apagar este agendamento?')) return;
     
     try {
-      const { error } = await supabase
-        .from('appointments')
-        .delete()
-        .eq('id', id);
-        
+      const { error } = await supabase.from('appointments').delete().eq('id', id);
       if (error) throw error;
       fetchMonthAppointments();
     } catch (err: any) {
-      alert('Erro ao apagar agendamento: ' + err.message);
+      alert('Erro ao apagar: ' + err.message);
     }
   }
 
   async function checkConflicts(profId: string, date: string, startTime: string, endTime: string, currentId?: string) {
+    console.log(`DEBUG: Iniciando verificação de conflitos para: Prof ${profId}, Data ${date}, De ${startTime} até ${endTime}`);
+    
     // Check if any existing appointment for the same professional overlaps
     const { data: conflicts, error } = await supabase
       .from('appointments')
-      .select('start_time, end_time, client:client_id(name)')
+      .select('id, start_time, end_time, client:client_id(name)')
       .eq('professional_id', profId)
-      .eq('appointment_date', date)
-      .neq('id', currentId || '00000000-0000-0000-0000-000000000000');
+      .eq('appointment_date', date);
 
-    if (error) return false;
+    if (error) {
+      console.error('DEBUG: Erro ao buscar conflitos no banco:', error);
+      return false;
+    }
 
-    // Overlap logic: (StartA < EndB) AND (EndA > StartB)
-    return conflicts.some(apt => {
+    console.log(`DEBUG: Encontrados ${conflicts?.length || 0} agendamentos no banco para este profissional nesta data.`);
+
+    if (!conflicts || conflicts.length === 0) return false;
+
+    // Filter out the current appointment being edited
+    const otherAppointments = currentId ? conflicts.filter(apt => apt.id !== currentId) : conflicts;
+    
+    console.log(`DEBUG: Verificando sobreposição contra ${otherAppointments.length} outros agendamentos.`);
+
+    const conflictingItem = otherAppointments.find(apt => {
       const aptStart = apt.start_time;
       const aptEnd = apt.end_time;
-      return (startTime < aptEnd && endTime > aptStart);
+      const hasOverlap = (startTime < aptEnd && endTime > aptStart);
+      if (hasOverlap) {
+        console.log(`DEBUG: Conflito detectado com agendamento das ${aptStart} às ${aptEnd} (ID: ${apt.id})`);
+      }
+      return hasOverlap;
     });
+
+    return !!conflictingItem;
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     
     if (!isAddingNewClient && !formData.client_id) {
-       alert('Selecione um cliente ou cadastre um novo.'); return;
-    }
-    if (isAddingNewClient && (!newClientData.name || !newClientData.phone)) {
-       alert('Preencha os dados do novo cliente.'); return;
+       alert('Selecione um cliente.'); return;
     }
     if (!formData.professional_id || !formData.service_id) {
        alert('Selecione a profissional e o serviço.'); return;
@@ -190,7 +204,7 @@ export default function Dashboard() {
       );
 
       if (hasConflict) {
-        const confirmSave = confirm('⚠️ ATENÇÃO: A profissional selecionada já possui um agendamento neste mesmo horário! Deseja realizar este agendamento duplicado mesmo assim?');
+        const confirmSave = confirm('⚠️ ALERTA DE CONFLITO: Esta profissional já possui um agendamento neste mesmo horário! Deseja prosseguir com a marcação duplicada?');
         if (!confirmSave) {
           setSubmitting(false);
           return;
@@ -215,8 +229,8 @@ export default function Dashboard() {
         professional_id: formData.professional_id,
         service_id: formData.service_id,
         appointment_date: formData.appointment_date,
-        start_time: start_time,
-        end_time: end_time,
+        start_time,
+        end_time,
         status: 'scheduled'
       };
 
@@ -241,7 +255,7 @@ export default function Dashboard() {
       fetchMonthAppointments();
       if (isAddingNewClient) fetchFormData(); 
     } catch (err: any) {
-      alert('Erro ao salvar agendamento: ' + err.message);
+      alert('Erro ao salvar: ' + err.message);
     } finally {
       setSubmitting(false);
     }
