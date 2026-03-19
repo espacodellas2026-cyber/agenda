@@ -135,197 +135,199 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
-      <header className="page-header">
-        <div>
-          <h1 className="page-title">Agenda</h1>
-          <p className="page-subtitle">Gerencie os agendamentos do Espaço Della's</p>
-        </div>
-        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-          <Plus size={20} />
-          Novo Agendamento
-        </button>
-      </header>
-
-      {error && (
-        <div className="login-error" style={{ marginBottom: '24px' }}>
-          Erro ao carregar dados: {error}
-        </div>
-      )}
-
-      <div className="dashboard-grid">
-        <div className="calendar-panel card">
-          <div className="calendar-header">
-            <button onClick={prevMonth} className="btn-icon">
-              <ChevronLeft size={24} />
-            </button>
-            <h2 className="calendar-month">
-              {format(currentDate, "MMMM yyyy", { locale: ptBR })}
-            </h2>
-            <button onClick={nextMonth} className="btn-icon">
-              <ChevronRight size={24} />
-            </button>
+      <div className="content-wrapper">
+        <header className="page-header">
+          <div>
+            <h1 className="page-title">Agenda</h1>
+            <p className="page-subtitle">Gerencie os agendamentos do Espaço Della's</p>
           </div>
-          
-          <div className="calendar-weekdays">
-            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-              <div key={day} className="weekday">{day}</div>
-            ))}
-          </div>
+          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
+            <Plus size={20} />
+            Novo Agendamento
+          </button>
+        </header>
 
-          <div className="calendar-days">
-            {Array.from({ length: monthStart.getDay() }).map((_, index) => (
-              <div key={`empty-${index}`} className="calendar-day empty"></div>
-            ))}
+        {error && (
+          <div className="login-error" style={{ marginBottom: '24px' }}>
+            Erro ao carregar dados: {error}
+          </div>
+        )}
+
+        <div className="dashboard-grid">
+          <div className="calendar-panel card">
+            <div className="calendar-header">
+              <button onClick={prevMonth} className="btn-icon">
+                <ChevronLeft size={24} />
+              </button>
+              <h2 className="calendar-month">
+                {format(currentDate, "MMMM yyyy", { locale: ptBR })}
+              </h2>
+              <button onClick={nextMonth} className="btn-icon">
+                <ChevronRight size={24} />
+              </button>
+            </div>
             
-            {days.map((day) => {
-              const dateStr = format(day, 'yyyy-MM-dd');
-              const isSelected = isSameDay(day, selectedDate);
-              const isCurrentMonth = isSameMonth(day, monthStart);
-              
-              const dayAppointments = appointments.filter(apt => apt.appointment_date === dateStr);
-              const hasIsis = dayAppointments.some(apt => apt.professional?.name === 'Isis');
-              const hasJaiane = dayAppointments.some(apt => apt.professional?.name === 'Jaiane');
-              
-              return (
-                <div
-                  key={day.toString()}
-                  className={`calendar-day ${!isCurrentMonth ? "disabled" : ""} ${isSelected ? "selected" : ""} ${isToday(day) ? "today" : ""}`}
-                  onClick={() => onDateClick(day)}
-                >
-                  <span className="day-number">{format(day, "d")}</span>
-                  {(hasIsis || hasJaiane) && (
-                    <div className="dots-container">
-                       {hasIsis && <span className="dot isis"></span>}
-                       {hasJaiane && <span className="dot jaiane"></span>}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+            <div className="calendar-weekdays">
+              {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+                <div key={day} className="weekday">{day}</div>
+              ))}
+            </div>
 
-        <div className="appointments-panel card">
-          <div className="appointments-header">
-            <h2>
-              Agendamentos
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginLeft: '12px', fontWeight: 400 }}>
-                {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
-              </span>
-            </h2>
+            <div className="calendar-days">
+              {Array.from({ length: monthStart.getDay() }).map((_, index) => (
+                <div key={`empty-${index}`} className="calendar-day empty"></div>
+              ))}
+              
+              {days.map((day) => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const isSelected = isSameDay(day, selectedDate);
+                const isCurrentMonth = isSameMonth(day, monthStart);
+                
+                const dayAppointments = appointments.filter(apt => apt.appointment_date === dateStr);
+                const hasIsis = dayAppointments.some(apt => apt.professional?.name === 'Isis');
+                const hasJaiane = dayAppointments.some(apt => apt.professional?.name === 'Jaiane');
+                
+                return (
+                  <div
+                    key={day.toString()}
+                    className={`calendar-day ${!isCurrentMonth ? "disabled" : ""} ${isSelected ? "selected" : ""} ${isToday(day) ? "today" : ""}`}
+                    onClick={() => onDateClick(day)}
+                  >
+                    <span className="day-number">{format(day, "d")}</span>
+                    {(hasIsis || hasJaiane) && (
+                      <div className="dots-container">
+                         {hasIsis && <span className="dot isis"></span>}
+                         {hasJaiane && <span className="dot jaiane"></span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="appointments-list">
-            {selectedDateAppointments.length > 0 ? (
-              selectedDateAppointments
-                .sort((a,b) => a.start_time.localeCompare(b.start_time))
-                .map(apt => {
-                  const profName = apt.professional?.name || 'Geral';
-                  const isIsis = profName === 'Isis';
-                  const professionalClass = isIsis ? 'pro-isis' : 'pro-jaiane';
-                  const badgeClass = isIsis ? 'badge-isis' : 'badge-jaiane';
-                  
-                  return (
-                    <div key={apt.id} className={`appointment-card ${professionalClass}`}>
-                      <div className="appointment-time">{apt.start_time.substring(0, 5)}</div>
-                      <div className="appointment-details">
-                        <h3 className="client-name">{apt.client?.name}</h3>
-                        <p className="service-name">{apt.service?.name || 'Serviço não especificado'}</p>
-                        <div className="appointment-meta">
-                          <span className={`badge ${badgeClass}`}>{profName}</span>
-                          <span className="duration">{apt.service?.duration_minutes || '?'} min</span>
+          <div className="appointments-panel card">
+            <div className="appointments-header">
+              <h2>
+                Agendamentos
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginLeft: '12px', fontWeight: 400 }}>
+                  {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
+                </span>
+              </h2>
+            </div>
+
+            <div className="appointments-list">
+              {selectedDateAppointments.length > 0 ? (
+                selectedDateAppointments
+                  .sort((a,b) => a.start_time.localeCompare(b.start_time))
+                  .map(apt => {
+                    const profName = apt.professional?.name || 'Geral';
+                    const isIsis = profName === 'Isis';
+                    const professionalClass = isIsis ? 'pro-isis' : 'pro-jaiane';
+                    const badgeClass = isIsis ? 'badge-isis' : 'badge-jaiane';
+                    
+                    return (
+                      <div key={apt.id} className={`appointment-card ${professionalClass}`}>
+                        <div className="appointment-time">{apt.start_time.substring(0, 5)}</div>
+                        <div className="appointment-details">
+                          <h3 className="client-name">{apt.client?.name}</h3>
+                          <p className="service-name">{apt.service?.name || 'Serviço não especificado'}</p>
+                          <div className="appointment-meta">
+                            <span className={`badge ${badgeClass}`}>{profName}</span>
+                            <span className="duration">{apt.service?.duration_minutes || '?'} min</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
-            ) : (
-              <div className="empty-state">
-                {loading ? <RefreshCw className="spinner" size={48} /> : <CalendarIcon size={48} className="empty-icon" />}
-                <h3>{loading ? 'Buscando...' : 'Nenhum agendamento'}</h3>
-                <p>{loading ? 'Aguarde um momento.' : 'Não há horários marcados para esta data.'}</p>
-              </div>
-            )}
+                    );
+                  })
+              ) : (
+                <div className="empty-state">
+                  {loading ? <RefreshCw className="spinner" size={48} /> : <CalendarIcon size={48} className="empty-icon" />}
+                  <h3>{loading ? 'Buscando...' : 'Nenhum agendamento'}</h3>
+                  <p>{loading ? 'Aguarde um momento.' : 'Não há horários marcados para esta data.'}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Modal de Novo Agendamento */}
-      {isModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '500px', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
-            <button className="btn-icon" onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', top: '16px', right: '16px' }}>
-              <X size={24} />
-            </button>
-            <h2 style={{ marginBottom: '24px', fontSize: '1.5rem' }}>Novo Agendamento</h2>
-            
-            <form onSubmit={handleAddAppointment}>
-              <div className="form-group">
-                <label>Cliente</label>
-                <select 
-                  value={formData.client_id} 
-                  onChange={(e) => setFormData({...formData, client_id: e.target.value})} 
-                  required
-                >
-                  <option value="">Selecione um cliente...</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Profissional Responsável</label>
-                <select 
-                  value={formData.professional_id} 
-                  onChange={(e) => setFormData({...formData, professional_id: e.target.value})} 
-                  required
-                >
-                  <option value="">Selecione...</option>
-                  {professionals.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Serviço</label>
-                <select 
-                  value={formData.service_id} 
-                  onChange={(e) => setFormData({...formData, service_id: e.target.value})} 
-                  required
-                >
-                  <option value="">Selecione o serviço...</option>
-                  {services
-                    .filter(s => !formData.professional_id || s.professional_id === formData.professional_id)
-                    .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="form-group">
-                  <label>Data</label>
-                  <input 
-                    type="date" 
-                    value={formData.appointment_date} 
-                    onChange={(e) => setFormData({...formData, appointment_date: e.target.value})} 
-                    required 
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Horário</label>
-                  <input 
-                    type="time" 
-                    value={formData.start_time} 
-                    onChange={(e) => setFormData({...formData, start_time: e.target.value})} 
-                    required 
-                  />
-                </div>
-              </div>
-
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px' }} disabled={submitting}>
-                {submitting ? 'Salvando...' : 'Confirmar Agendamento'}
+        {/* Modal de Novo Agendamento */}
+        {isModalOpen && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+            <div className="card" style={{ width: '100%', maxWidth: '500px', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+              <button className="btn-icon" onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', top: '16px', right: '16px' }}>
+                <X size={24} />
               </button>
-            </form>
+              <h2 style={{ marginBottom: '24px', fontSize: '1.5rem' }}>Novo Agendamento</h2>
+              
+              <form onSubmit={handleAddAppointment}>
+                <div className="form-group">
+                  <label>Cliente</label>
+                  <select 
+                    value={formData.client_id} 
+                    onChange={(e) => setFormData({...formData, client_id: e.target.value})} 
+                    required
+                  >
+                    <option value="">Selecione um cliente...</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Profissional Responsável</label>
+                  <select 
+                    value={formData.professional_id} 
+                    onChange={(e) => setFormData({...formData, professional_id: e.target.value})} 
+                    required
+                  >
+                    <option value="">Selecione...</option>
+                    {professionals.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Serviço</label>
+                  <select 
+                    value={formData.service_id} 
+                    onChange={(e) => setFormData({...formData, service_id: e.target.value})} 
+                    required
+                  >
+                    <option value="">Selecione o serviço...</option>
+                    {services
+                      .filter(s => !formData.professional_id || s.professional_id === formData.professional_id)
+                      .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="form-group">
+                    <label>Data</label>
+                    <input 
+                      type="date" 
+                      value={formData.appointment_date} 
+                      onChange={(e) => setFormData({...formData, appointment_date: e.target.value})} 
+                      required 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Horário</label>
+                    <input 
+                      type="time" 
+                      value={formData.start_time} 
+                      onChange={(e) => setFormData({...formData, start_time: e.target.value})} 
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px' }} disabled={submitting}>
+                  {submitting ? 'Salvando...' : 'Confirmar Agendamento'}
+                </button>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
