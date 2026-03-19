@@ -90,14 +90,9 @@ export default function ServicesPage() {
                           <h3 style={{ fontSize: '1.05rem', marginBottom: '4px' }}>{service.name}</h3>
                           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{service.duration_minutes} minutos</p>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                          <span style={{ fontWeight: 'bold', color: 'var(--secondary)' }}>
-                            {(service.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                          </span>
-                          <div style={{ display: 'flex', gap: '4px' }}>
-                            <button className="btn-icon"><Edit2 size={16} /></button>
-                            <button className="btn-icon" style={{ color: 'var(--danger)' }}><Trash2 size={16} /></button>
-                          </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button className="btn-icon"><Edit2 size={16} /></button>
+                          <button className="btn-icon" style={{ color: 'var(--danger)' }}><Trash2 size={16} /></button>
                         </div>
                       </div>
                     ))}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, RefreshCw, UserPlus } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddingNewClient, setIsAddingNewClient] = useState(false);
   
   // Data States
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -27,6 +28,10 @@ export default function Dashboard() {
     appointment_date: format(new Date(), 'yyyy-MM-dd'),
     start_time: '09:00'
   });
+  
+  // Quick Client State
+  const [newClientData, setNewClientData] = useState({ name: '', phone: '' });
+  
   const [submitting, setSubmitting] = useState(false);
 
   const monthStart = startOfMonth(currentDate);
@@ -85,13 +90,33 @@ export default function Dashboard() {
 
   async function handleAddAppointment(e: React.FormEvent) {
     e.preventDefault();
-    if (!formData.client_id || !formData.professional_id || !formData.service_id) {
-       alert('Por favor, selecione o cliente, a profissional e o serviço.');
-       return;
+    
+    if (!isAddingNewClient && !formData.client_id) {
+       alert('Selecione um cliente ou cadastre um novo.'); return;
+    }
+    if (isAddingNewClient && (!newClientData.name || !newClientData.phone)) {
+       alert('Preencha os dados do novo cliente.'); return;
+    }
+    if (!formData.professional_id || !formData.service_id) {
+       alert('Selecione a profissional e o serviço.'); return;
     }
 
     try {
       setSubmitting(true);
+      
+      let finalClientId = formData.client_id;
+      
+      // 1. If adding new client, create them first
+      if (isAddingNewClient) {
+        const { data: newClient, error: clientError } = await supabase
+          .from('clients')
+          .insert([{ name: newClientData.name, phone: newClientData.phone }])
+          .select()
+          .single();
+          
+        if (clientError) throw clientError;
+        finalClientId = newClient.id;
+      }
       
       const service = services.find(s => s.id === formData.service_id);
       const duration = service?.duration_minutes || 60;
@@ -105,7 +130,11 @@ export default function Dashboard() {
       const { error: insertError } = await supabase
         .from('appointments')
         .insert([{
-          ...formData,
+          client_id: finalClientId,
+          professional_id: formData.professional_id,
+          service_id: formData.service_id,
+          appointment_date: formData.appointment_date,
+          start_time: formData.start_time,
           end_time,
           status: 'scheduled'
         }]);
@@ -114,7 +143,10 @@ export default function Dashboard() {
 
       alert('Agendamento realizado com sucesso!');
       setIsModalOpen(false);
+      setIsAddingNewClient(false);
+      setNewClientData({ name: '', phone: '' });
       fetchMonthAppointments();
+      fetchFormData(); // Refresh client list
     } catch (err: any) {
       alert('Erro ao salvar agendamento: ' + err.message);
     } finally {
@@ -141,7 +173,7 @@ export default function Dashboard() {
             <h1 className="page-title">Agenda</h1>
             <p className="page-subtitle">Gerencie os agendamentos do Espaço Della's</p>
           </div>
-          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
+          <button className="btn btn-primary" onClick={() => { setIsModalOpen(true); setIsAddingNewClient(false); }}>
             <Plus size={20} />
             Novo Agendamento
           </button>
@@ -253,24 +285,53 @@ export default function Dashboard() {
 
         {/* Modal de Novo Agendamento */}
         {isModalOpen && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
-            <div className="card" style={{ width: '100%', maxWidth: '500px', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
-              <button className="btn-icon" onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', top: '16px', right: '16px' }}>
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}>
+            <div className="card" style={{ width: '100%', maxWidth: '540px', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+              <button className="btn-icon" onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', top: '24px', right: '24px' }}>
                 <X size={24} />
               </button>
-              <h2 style={{ marginBottom: '24px', fontSize: '1.5rem' }}>Novo Agendamento</h2>
+              <h2 style={{ marginBottom: '24px', fontSize: '1.6rem', fontWeight: 800 }}>Novo Agendamento</h2>
               
               <form onSubmit={handleAddAppointment}>
                 <div className="form-group">
-                  <label>Cliente</label>
-                  <select 
-                    value={formData.client_id} 
-                    onChange={(e) => setFormData({...formData, client_id: e.target.value})} 
-                    required
-                  >
-                    <option value="">Selecione um cliente...</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <label style={{ margin: 0 }}>Cliente</label>
+                    <button 
+                      type="button" 
+                      onClick={() => setIsAddingNewClient(!isAddingNewClient)}
+                      style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                    >
+                      {isAddingNewClient ? 'Selecionar da Lista' : <><UserPlus size={16} /> Novo Cliente</>}
+                    </button>
+                  </div>
+                  
+                  {isAddingNewClient ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '16px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px dashed var(--primary)' }}>
+                      <input 
+                        type="text" 
+                        placeholder="Nome do Cliente" 
+                        value={newClientData.name} 
+                        onChange={(e) => setNewClientData({...newClientData, name: e.target.value})} 
+                        required 
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Telefone" 
+                        value={newClientData.phone} 
+                        onChange={(e) => setNewClientData({...newClientData, phone: e.target.value})} 
+                        required 
+                      />
+                    </div>
+                  ) : (
+                    <select 
+                      value={formData.client_id} 
+                      onChange={(e) => setFormData({...formData, client_id: e.target.value})} 
+                      required
+                    >
+                      <option value="">Escolha um cliente...</option>
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -292,14 +353,14 @@ export default function Dashboard() {
                     onChange={(e) => setFormData({...formData, service_id: e.target.value})} 
                     required
                   >
-                    <option value="">Selecione o serviço...</option>
+                    <option value="">Selecione o procedimento...</option>
                     {services
                       .filter(s => !formData.professional_id || s.professional_id === formData.professional_id)
-                      .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      .map(s => <option key={s.id} value={s.id}>{s.name} ({s.duration_minutes} min)</option>)}
                   </select>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                   <div className="form-group">
                     <label>Data</label>
                     <input 
@@ -320,7 +381,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px' }} disabled={submitting}>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '16px', fontSize: '1.1rem' }} disabled={submitting}>
                   {submitting ? 'Salvando...' : 'Confirmar Agendamento'}
                 </button>
               </form>
