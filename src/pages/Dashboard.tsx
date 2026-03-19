@@ -1,63 +1,156 @@
-import { useState } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
+import { useState, useEffect } from 'react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, RefreshCw } from 'lucide-react';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from '../lib/supabase';
+import { Appointment, Client, Profile, Service } from '../types';
 
 export default function Dashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Data States
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [professionals, setProfessionals] = useState<Profile[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Form State
+  const [formData, setFormData] = useState({
+    client_id: '',
+    professional_id: '',
+    service_id: '',
+    appointment_date: format(new Date(), 'yyyy-MM-dd'),
+    start_time: '09:00'
+  });
+  const [submitting, setSubmitting] = useState(false);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
-  const startDate = monthStart; // For a full calendar you might want startOfWeek
-  const endDate = monthEnd; // and endOfWeek
+  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  const dateFormat = "MMMM yyyy";
-  const days = eachDayOfInterval({
-    start: startDate,
-    end: endDate
-  });
+  useEffect(() => {
+    fetchMonthAppointments();
+    fetchFormData();
+  }, [currentDate]);
 
-  const nextMonth = () => {
-    setCurrentDate(addMonths(currentDate, 1));
-  };
+  async function fetchFormData() {
+    try {
+      const [clientsRes, profsRes, servicesRes] = await Promise.all([
+        supabase.from('clients').select('*').order('name'),
+        supabase.from('profiles').select('*'),
+        supabase.from('services').select('*')
+      ]);
 
-  const prevMonth = () => {
-    setCurrentDate(subMonths(currentDate, 1));
-  };
+      if (clientsRes.data) setClients(clientsRes.data);
+      if (profsRes.data) setProfessionals(profsRes.data);
+      if (servicesRes.data) setServices(servicesRes.data);
+    } catch (err) {
+      console.error('Erro ao carregar opções do formulário:', err);
+    }
+  }
 
+  async function fetchMonthAppointments() {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const firstDay = format(monthStart, 'yyyy-MM-dd');
+      const lastDay = format(monthEnd, 'yyyy-MM-dd');
+
+      const { data, error: fetchError } = await supabase
+        .from('appointments')
+        .select(`
+          *,
+          client:client_id (name, phone),
+          professional:professional_id (name),
+          service:service_id (name, duration_minutes)
+        `)
+        .gte('appointment_date', firstDay)
+        .lte('appointment_date', lastDay);
+
+      if (fetchError) throw fetchError;
+      setAppointments(data || []);
+    } catch (err: any) {
+      setError(err.message);
+      console.error('Erro ao buscar agendamentos:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAddAppointment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!formData.client_id || !formData.professional_id || !formData.service_id) {
+       alert('Por favor, selecione o cliente, a profissional e o serviço.');
+       return;
+    }
+
+    try {
+      setSubmitting(true);
+      
+      const service = services.find(s => s.id === formData.service_id);
+      const duration = service?.duration_minutes || 60;
+      
+      const [h, m] = formData.start_time.split(':').map(Number);
+      const totalMinutes = h * 60 + m + duration;
+      const endH = Math.floor(totalMinutes / 60);
+      const endM = totalMinutes % 60;
+      const end_time = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}:00`;
+
+      const { error: insertError } = await supabase
+        .from('appointments')
+        .insert([{
+          ...formData,
+          end_time,
+          status: 'scheduled'
+        }]);
+
+      if (insertError) throw insertError;
+
+      alert('Agendamento realizado com sucesso!');
+      setIsModalOpen(false);
+      fetchMonthAppointments();
+    } catch (err: any) {
+      alert('Erro ao salvar agendamento: ' + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
+  const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
   const onDateClick = (day: Date) => {
     setSelectedDate(day);
+    setFormData(prev => ({ ...prev, appointment_date: format(day, 'yyyy-MM-dd') }));
   };
 
-  // Mock appointments com datas concretas do ciclo atual
-  const appointments = [
-    { id: '1', client: 'Maria Silva', service: 'Design de Sobrancelha', time: '09:00', duration: '60 min', professional: 'Isis', date: new Date() },
-    { id: '2', client: 'Ana Paula', service: 'Manicure', time: '10:30', duration: '90 min', professional: 'Jaiane', date: new Date() },
-    { id: '3', client: 'Juliana Costa', service: 'Alongamento Cílios', time: '14:00', duration: '120 min', professional: 'Isis', date: addMonths(new Date(), 0) },
-    { id: '4', client: 'Carla', service: 'Pedicure', time: '08:00', duration: '45 min', professional: 'Jaiane', date: addMonths(new Date(), 0) }
-  ];
-
-  // Adicionando um de teste amanhã pra ver as bolinhas coloridas
-  appointments[2].date.setDate(currentDate.getDate() + 1);
-  appointments[3].date.setDate(currentDate.getDate() + 1);
-
-  // Filtrando os agendamentos pelo selectedDate atual
-  const selectedDateAppointments = appointments.filter(apt => isSameDay(apt.date, selectedDate));
+  const selectedDateAppointments = appointments.filter(apt => 
+    isSameDay(parseISO(apt.appointment_date), selectedDate)
+  );
 
   return (
     <div className="dashboard">
       <header className="page-header">
         <div>
           <h1 className="page-title">Agenda</h1>
-          <p className="page-subtitle">Gerencie os agendamentos do salão</p>
+          <p className="page-subtitle">Gerencie os agendamentos do Espaço Della's</p>
         </div>
         <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
           <Plus size={20} />
           Novo Agendamento
         </button>
       </header>
+
+      {error && (
+        <div className="login-error" style={{ marginBottom: '24px' }}>
+          Erro ao carregar dados: {error}
+        </div>
+      )}
 
       <div className="dashboard-grid">
         <div className="calendar-panel card">
@@ -66,7 +159,7 @@ export default function Dashboard() {
               <ChevronLeft size={24} />
             </button>
             <h2 className="calendar-month">
-              {format(currentDate, dateFormat, { locale: ptBR })}
+              {format(currentDate, "MMMM yyyy", { locale: ptBR })}
             </h2>
             <button onClick={nextMonth} className="btn-icon">
               <ChevronRight size={24} />
@@ -80,20 +173,18 @@ export default function Dashboard() {
           </div>
 
           <div className="calendar-days">
-            {/* Pad empty days if month doesn't start on Sunday */}
             {Array.from({ length: monthStart.getDay() }).map((_, index) => (
               <div key={`empty-${index}`} className="calendar-day empty"></div>
             ))}
             
             {days.map((day) => {
-              const formattedDate = format(day, "d");
+              const dateStr = format(day, 'yyyy-MM-dd');
               const isSelected = isSameDay(day, selectedDate);
               const isCurrentMonth = isSameMonth(day, monthStart);
               
-              // Verify professionals with appointments on this specific day
-              const dayAppointments = appointments.filter(apt => isSameDay(apt.date, day));
-              const hasIsis = dayAppointments.some(apt => apt.professional === 'Isis');
-              const hasJaiane = dayAppointments.some(apt => apt.professional === 'Jaiane');
+              const dayAppointments = appointments.filter(apt => apt.appointment_date === dateStr);
+              const hasIsis = dayAppointments.some(apt => apt.professional?.name === 'Isis');
+              const hasJaiane = dayAppointments.some(apt => apt.professional?.name === 'Jaiane');
               
               return (
                 <div
@@ -101,9 +192,7 @@ export default function Dashboard() {
                   className={`calendar-day ${!isCurrentMonth ? "disabled" : ""} ${isSelected ? "selected" : ""} ${isToday(day) ? "today" : ""}`}
                   onClick={() => onDateClick(day)}
                 >
-                  <span className="day-number">{formattedDate}</span>
-                  
-                  {/* Color dots depending on who is working that day */}
+                  <span className="day-number">{format(day, "d")}</span>
                   {(hasIsis || hasJaiane) && (
                     <div className="dots-container">
                        {hasIsis && <span className="dot isis"></span>}
@@ -120,7 +209,7 @@ export default function Dashboard() {
           <div className="appointments-header">
             <h2>
               Agendamentos
-              <span className="text-muted text-sm ml-2">
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginLeft: '12px', fontWeight: 400 }}>
                 {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
               </span>
             </h2>
@@ -128,30 +217,33 @@ export default function Dashboard() {
 
           <div className="appointments-list">
             {selectedDateAppointments.length > 0 ? (
-              selectedDateAppointments.sort((a,b) => a.time.localeCompare(b.time)).map(apt => {
-                const isIsis = apt.professional === 'Isis';
-                const professionalClass = isIsis ? 'pro-isis' : 'pro-jaiane';
-                const badgeClass = isIsis ? 'badge-isis' : 'badge-jaiane';
-                
-                return (
-                  <div key={apt.id} className={`appointment-card ${professionalClass}`}>
-                    <div className="appointment-time">{apt.time}</div>
-                    <div className="appointment-details">
-                      <h3 className="client-name">{apt.client}</h3>
-                      <p className="service-name">{apt.service}</p>
-                      <div className="appointment-meta">
-                        <span className={`badge ${badgeClass}`}>{apt.professional}</span>
-                        <span className="duration">{apt.duration}</span>
+              selectedDateAppointments
+                .sort((a,b) => a.start_time.localeCompare(b.start_time))
+                .map(apt => {
+                  const profName = apt.professional?.name || 'Geral';
+                  const isIsis = profName === 'Isis';
+                  const professionalClass = isIsis ? 'pro-isis' : 'pro-jaiane';
+                  const badgeClass = isIsis ? 'badge-isis' : 'badge-jaiane';
+                  
+                  return (
+                    <div key={apt.id} className={`appointment-card ${professionalClass}`}>
+                      <div className="appointment-time">{apt.start_time.substring(0, 5)}</div>
+                      <div className="appointment-details">
+                        <h3 className="client-name">{apt.client?.name}</h3>
+                        <p className="service-name">{apt.service?.name || 'Serviço não especificado'}</p>
+                        <div className="appointment-meta">
+                          <span className={`badge ${badgeClass}`}>{profName}</span>
+                          <span className="duration">{apt.service?.duration_minutes || '?'} min</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })
             ) : (
               <div className="empty-state">
-                <CalendarIcon size={48} className="empty-icon" />
-                <h3>Nenhum agendamento</h3>
-                <p>Não há horários marcados para esta data.</p>
+                {loading ? <RefreshCw className="spinner" size={48} /> : <CalendarIcon size={48} className="empty-icon" />}
+                <h3>{loading ? 'Buscando...' : 'Nenhum agendamento'}</h3>
+                <p>{loading ? 'Aguarde um momento.' : 'Não há horários marcados para esta data.'}</p>
               </div>
             )}
           </div>
@@ -162,54 +254,73 @@ export default function Dashboard() {
       {isModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
           <div className="card" style={{ width: '100%', maxWidth: '500px', position: 'relative', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
-            <button 
-              className="btn-icon" 
-              onClick={() => setIsModalOpen(false)} 
-              style={{ position: 'absolute', top: '16px', right: '16px' }}
-            >
+            <button className="btn-icon" onClick={() => setIsModalOpen(false)} style={{ position: 'absolute', top: '16px', right: '16px' }}>
               <X size={24} />
             </button>
             <h2 style={{ marginBottom: '24px', fontSize: '1.5rem' }}>Novo Agendamento</h2>
             
-            <form onSubmit={(e) => { 
-                e.preventDefault(); 
-                alert('Os formulários estão prontos! Quando integrarmos o Supabase, os agendamentos serão salvos de verdade.'); 
-                setIsModalOpen(false); 
-            }}>
+            <form onSubmit={handleAddAppointment}>
               <div className="form-group">
                 <label>Cliente</label>
-                <input type="text" placeholder="Nome do cliente (ou busque um existente)" required />
+                <select 
+                  value={formData.client_id} 
+                  onChange={(e) => setFormData({...formData, client_id: e.target.value})} 
+                  required
+                >
+                  <option value="">Selecione um cliente...</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
               </div>
+
               <div className="form-group">
                 <label>Profissional Responsável</label>
-                <select required>
+                <select 
+                  value={formData.professional_id} 
+                  onChange={(e) => setFormData({...formData, professional_id: e.target.value})} 
+                  required
+                >
                   <option value="">Selecione...</option>
-                  <option value="Isis">Isis</option>
-                  <option value="Jaiane">Jaiane</option>
+                  {professionals.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
+
               <div className="form-group">
-                <label>Serviço Desejado</label>
-                <select required>
-                  <option value="">Selecione...</option>
-                  <option value="Design">Design de Sobrancelha</option>
-                  <option value="Cílios">Alongamento de Cílios</option>
-                  <option value="Manicure">Manicure / Pedicure</option>
-                  <option value="Spa">Spa dos Pés</option>
+                <label>Serviço</label>
+                <select 
+                  value={formData.service_id} 
+                  onChange={(e) => setFormData({...formData, service_id: e.target.value})} 
+                  required
+                >
+                  <option value="">Selecione o serviço...</option>
+                  {services
+                    .filter(s => !formData.professional_id || s.professional_id === formData.professional_id)
+                    .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
                   <label>Data</label>
-                  <input type="date" required />
+                  <input 
+                    type="date" 
+                    value={formData.appointment_date} 
+                    onChange={(e) => setFormData({...formData, appointment_date: e.target.value})} 
+                    required 
+                  />
                 </div>
                 <div className="form-group">
                   <label>Horário</label>
-                  <input type="time" required />
+                  <input 
+                    type="time" 
+                    value={formData.start_time} 
+                    onChange={(e) => setFormData({...formData, start_time: e.target.value})} 
+                    required 
+                  />
                 </div>
               </div>
-              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px' }}>
-                Confirmar Agendamento
+
+              <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px' }} disabled={submitting}>
+                {submitting ? 'Salvando...' : 'Confirmar Agendamento'}
               </button>
             </form>
           </div>
