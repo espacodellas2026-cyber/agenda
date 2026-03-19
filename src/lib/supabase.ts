@@ -1,12 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (supabaseUrl === 'https://placeholder.supabase.co') {
-  console.warn(
-    '⚠️ Supabase URL ou Anon Key não configuradas. Crie um arquivo .env com VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY'
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error(
+    'ERRO: Variáveis do Supabase (VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY) não encontradas no arquivo .env!'
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder'
+);
